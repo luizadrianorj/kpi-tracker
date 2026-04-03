@@ -160,6 +160,19 @@
         <input class="add-input" type="text" id="new-kpi" placeholder="Novo KPI..." />
         <button class="add-btn" onclick="addKPI()">+ Adicionar</button>
       </div>
+
+      <div style="margin-top:20px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);padding:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Lembrete diário</span>
+          <span id="notif-status" style="font-size:11px;font-family:'DM Mono',monospace;color:var(--muted)">—</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="font-size:13px;color:var(--muted);min-width:60px">Horário</span>
+          <input type="time" id="notif-time" value="07:00" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:6px 10px;outline:none;flex:1" />
+          <button onclick="saveNotifTime()" style="background:var(--accent);border:none;border-radius:8px;color:var(--accent-text);font-family:'DM Mono',monospace;font-size:11px;font-weight:500;padding:8px 14px;cursor:pointer;white-space:nowrap">Ativar</button>
+        </div>
+        <p style="font-size:11px;color:var(--muted);line-height:1.6">Você receberá uma notificação no horário escolhido com quantos KPIs ainda faltam no dia. O app precisa estar instalado na tela inicial.</p>
+      </div>
     </div>
 
     <div class="section" id="sec-grafico" style="display:none">
@@ -440,8 +453,55 @@ function renderChart(){
   }
 }
 
+let swReg = null;
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  window.addEventListener('load', async () => {
+    try {
+      swReg = await navigator.serviceWorker.register('/kpi-tracker/sw.js');
+      loadNotifSettings();
+    } catch(e){}
+  });
+}
+function getPendingCount(){
+  const key = dk(new Date());
+  const log = state.logs[key] || {};
+  const done = Object.values(log).filter(Boolean).length;
+  return Math.max(0, state.kpis.length - done);
+}
+function loadNotifSettings(){
+  const saved = localStorage.getItem('kpi_notif_time');
+  if(saved){
+    document.getElementById('notif-time').value = saved;
+    setNotifStatus('ativo às ' + saved);
+  }
+}
+async function saveNotifTime(){
+  if(!('Notification' in window)){
+    alert('Notificações não são suportadas neste navegador.');
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  if(perm !== 'granted'){
+    setNotifStatus('bloqueado');
+    alert('Permissão negada. Ative nas configurações do celular para este site.');
+    return;
+  }
+  const timeVal = document.getElementById('notif-time').value;
+  const [hour, minute] = timeVal.split(':').map(Number);
+  localStorage.setItem('kpi_notif_time', timeVal);
+  setNotifStatus('ativo às ' + timeVal);
+  if(swReg && swReg.active){
+    swReg.active.postMessage({
+      type: 'SCHEDULE_NOTIFICATION',
+      hour, minute,
+      pendingCount: getPendingCount(),
+      totalCount: state.kpis.length
+    });
+  }
+}
+function setNotifStatus(msg){
+  const el = document.getElementById('notif-status');
+  if(el) el.textContent = msg;
 }
 </script>
 </body>
