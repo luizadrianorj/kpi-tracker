@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KPI Diário">
+<meta name="theme-color" content="#0f0f0f">
+<link rel="manifest" href="manifest.json">
+<title>KPI Diário</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg:#0f0f0f;--bg2:#1a1a1a;--bg3:#242424;
+    --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
+    --text:#f0ede8;--muted:#6b6860;
+    --accent:#c8f060;--accent-dim:rgba(200,240,96,0.12);--accent-text:#1a2800;
+    --danger:#ff5a5a;--r:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overscroll-behavior:none}
+  #app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+
+  /* Login screen */
+  #login-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center}
+  .login-logo{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:32px}
+  .login-title{font-size:28px;font-weight:300;color:var(--text);margin-bottom:8px;line-height:1.2}
+  .login-sub{font-size:14px;color:var(--muted);margin-bottom:40px;line-height:1.6}
+  .google-btn{display:flex;align-items:center;gap:10px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r);padding:14px 24px;cursor:pointer;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;transition:background .15s}
+  .google-btn:hover{background:var(--bg3)}
+  .google-btn svg{width:18px;height:18px;flex-shrink:0}
+
+  /* Header */
+  .header{padding:max(env(safe-area-inset-top),20px) 20px 16px;background:var(--bg);border-bottom:0.5px solid var(--border)}
+  .header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .app-title{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+  .user-row{display:flex;align-items:center;gap:8px}
+  .user-name{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace}
+  .logout-btn{background:transparent;border:0.5px solid var(--border);border-radius:6px;color:var(--muted);font-size:11px;padding:4px 8px;cursor:pointer;font-family:'DM Mono',monospace;letter-spacing:.04em}
+  .logout-btn:hover{color:var(--danger);border-color:var(--danger)}
+  .date-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .nav-btn{background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text);font-size:14px;transition:background .15s}
+  .nav-btn:hover{background:#2e2e2e}
+  .date-display{font-family:'DM Mono',monospace;font-size:13px;color:var(--text);min-width:130px;text-align:center}
+  .date-display span{color:var(--accent)}
+  .progress-bar-wrap{height:3px;background:var(--bg3);border-radius:3px;overflow:hidden}
+  .progress-bar-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .4s ease}
+
+  /* Tabs */
+  .tabs{display:flex;border-bottom:0.5px solid var(--border);background:var(--bg)}
+  .tab-btn{flex:1;padding:12px;font-size:12px;font-family:'DM Mono',monospace;letter-spacing:.06em;color:var(--muted);background:transparent;border:none;cursor:pointer;transition:color .15s;text-transform:uppercase}
+  .tab-btn.active{color:var(--accent);border-bottom:1.5px solid var(--accent);margin-bottom:-0.5px}
+
+  /* Section */
+  .section{flex:1;overflow-y:auto;padding:20px;padding-bottom:max(20px,env(safe-area-inset-bottom))}
+
+  /* Summary */
+  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}
+  .scard{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);padding:12px}
+  .scard .lbl{font-size:10px;font-family:'DM Mono',monospace;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+  .scard .val{font-size:22px;font-weight:300;color:var(--text)}
+  .scard.accent{background:var(--accent-dim);border-color:rgba(200,240,96,0.2)}
+  .scard.accent .val{color:var(--accent)}
+
+  /* KPI list */
+  .kpi-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+  .kpi-item{display:flex;align-items:center;gap:12px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);padding:14px 16px;cursor:pointer;transition:border-color .15s,background .15s;user-select:none}
+  .kpi-item:active{transform:scale(0.98)}
+  .kpi-item.done{border-color:rgba(200,240,96,0.3);background:var(--accent-dim)}
+  .check-circle{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
+  .kpi-item.done .check-circle{background:var(--accent);border-color:var(--accent)}
+  .check-icon{display:none}
+  .kpi-item.done .check-icon{display:block}
+  .kpi-name{flex:1;font-size:14px;color:var(--text)}
+  .kpi-item.done .kpi-name{color:var(--accent)}
+  .del-btn{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px 4px;border-radius:4px;transition:color .15s}
+  .del-btn:hover{color:var(--danger)}
+
+  /* Add form */
+  .add-row{display:flex;gap:8px}
+  .add-input{flex:1;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:0 14px;height:44px;outline:none;transition:border-color .15s}
+  .add-input::placeholder{color:var(--muted)}
+  .add-input:focus{border-color:rgba(200,240,96,0.4)}
+  .add-btn{background:var(--accent);border:none;border-radius:var(--r);color:var(--accent-text);font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.06em;padding:0 16px;height:44px;cursor:pointer;white-space:nowrap;transition:opacity .15s}
+  .add-btn:hover{opacity:.88}
+  .add-btn:active{opacity:.75}
+
+  /* Sync indicator */
+  .sync-badge{font-size:10px;font-family:'DM Mono',monospace;color:var(--muted);padding:2px 8px;border-radius:6px;border:0.5px solid var(--border);margin-left:auto}
+  .sync-badge.syncing{color:#60a8f0;border-color:rgba(96,168,240,0.3)}
+  .sync-badge.ok{color:var(--accent);border-color:rgba(200,240,96,0.3)}
+
+  /* Chart */
+  .chart-mode-row{display:flex;gap:6px;margin-bottom:16px}
+  .mode-btn{background:var(--bg2);border:0.5px solid var(--border);border-radius:8px;padding:6px 14px;font-size:11px;font-family:'DM Mono',monospace;letter-spacing:.06em;color:var(--muted);cursor:pointer;text-transform:uppercase;transition:all .15s}
+  .mode-btn.active{background:var(--accent-dim);border-color:rgba(200,240,96,0.3);color:var(--accent)}
+  .chart-wrap{position:relative;width:100%;height:220px;margin-bottom:16px}
+  .chart-legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+  .legend-item{display:flex;align-items:center;gap:5px;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted)}
+  .legend-dot{width:8px;height:8px;border-radius:2px}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+
+  .empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;line-height:1.7}
+  .loading{text-align:center;padding:40px 20px;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;letter-spacing:.06em}
+
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .kpi-item{animation:fadeIn .2s ease both}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spinner{display:inline-block;width:14px;height:14px;border:1.5px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- LOGIN -->
+  <div id="login-screen">
+    <div class="login-logo">KPI Diário</div>
+    <h1 class="login-title">Suas metas,<br>em qualquer tela.</h1>
+    <p class="login-sub">Faça login para sincronizar seus KPIs<br>entre celular e computador.</p>
+    <button class="google-btn" onclick="loginGoogle()">
+      <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Entrar com Google
+    </button>
+  </div>
+
+  <!-- APP (hidden until login) -->
+  <div id="main-app" style="display:none;flex-direction:column;flex:1">
+    <div class="header">
+      <div class="header-top">
+        <span class="app-title">KPI Diário</span>
+        <div class="user-row">
+          <span class="user-name" id="user-name"></span>
+          <button class="logout-btn" onclick="doLogout()">sair</button>
+        </div>
+      </div>
+      <div class="date-nav">
+        <button class="nav-btn" id="prev-day">&#8592;</button>
+        <div class="date-display" id="date-display"></div>
+        <button class="nav-btn" id="next-day">&#8594;</button>
+        <span class="sync-badge" id="sync-badge">—</span>
+      </div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-hoje" onclick="showTab('hoje')">Hoje</button>
+      <button class="tab-btn" id="tab-grafico" onclick="showTab('grafico')">Gráfico</button>
+    </div>
+
+    <div class="section" id="sec-hoje">
+      <div class="summary">
+        <div class="scard"><div class="lbl">Feitos</div><div class="val" id="s-done">0</div></div>
+        <div class="scard"><div class="lbl">Total</div><div class="val" id="s-total">0</div></div>
+        <div class="scard accent"><div class="lbl">Taxa</div><div class="val" id="s-rate">0%</div></div>
+      </div>
+      <div class="kpi-list" id="kpi-list"><div class="loading"><span class="spinner"></span>carregando...</div></div>
+      <div class="add-row">
+        <input class="add-input" type="text" id="new-kpi" placeholder="Novo KPI..." />
+        <button class="add-btn" onclick="addKPI()">+ Adicionar</button>
+      </div>
+    </div>
+
+    <div class="section" id="sec-grafico" style="display:none">
+      <div class="chart-mode-row">
+        <button class="mode-btn active" id="cm-month" onclick="setChartMode('month')">Este mês</button>
+        <button class="mode-btn" id="cm-compare" onclick="setChartMode('compare')">Comparar</button>
+      </div>
+      <div class="chart-legend" id="chart-legend"></div>
+      <div class="chart-wrap"><canvas id="kpiChart"></canvas></div>
+      <div class="stat-grid" id="stat-grid"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Firebase SDKs (modular via CDN compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<script>
+// ── Firebase config ──────────────────────────────────────────
+firebase.initializeApp({
+  apiKey: "AIzaSyAFLnvq4WaR3rYeP5NDDm_d5BKlr2jXllc",
+  authDomain: "kpi-tracker-f0b35.firebaseapp.com",
+  projectId: "kpi-tracker-f0b35",
+  storageBucket: "kpi-tracker-f0b35.firebasestorage.app",
+  messagingSenderId: "389015894869",
+  appId: "1:389015894869:web:5f27575ebe2e1ecacdcddc"
+});
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+// ── State ────────────────────────────────────────────────────
+let uid = null;
+let state = { kpis: [], logs: {} };
+let curDate = new Date();
+let chartMode = 'month';
+let kpiChart = null;
+let unsubscribe = null;
+
+const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const DAYS   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const DEFAULT_KPIS = ['Ciclos de movimento','Flexões de braço','Abdominais (100)','5 km corrida','30 min leitura'];
+
+// ── Auth ─────────────────────────────────────────────────────
+function loginGoogle(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(e => alert('Erro ao entrar: ' + e.message));
+}
+function doLogout(){
+  if(unsubscribe) unsubscribe();
+  auth.signOut();
+}
+
+auth.onAuthStateChanged(user => {
+  if(user){
+    uid = user.uid;
+    document.getElementById('login-screen').style.display = 'none';
+    const mainApp = document.getElementById('main-app');
+    mainApp.style.display = 'flex';
+    const firstName = (user.displayName||'').split(' ')[0];
+    document.getElementById('user-name').textContent = firstName;
+    initFirestoreListener();
+  } else {
+    uid = null;
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('main-app').style.display = 'none';
+    if(unsubscribe){ unsubscribe(); unsubscribe=null; }
+  }
+});
+
+// ── Firestore ─────────────────────────────────────────────────
+function userDoc(){ return db.collection('users').doc(uid); }
+
+function initFirestoreListener(){
+  setSyncBadge('syncing');
+  unsubscribe = userDoc().onSnapshot(snap => {
+    if(snap.exists){
+      state = snap.data();
+      if(!state.kpis) state.kpis = DEFAULT_KPIS;
+      if(!state.logs)  state.logs  = {};
+    } else {
+      state = { kpis: [...DEFAULT_KPIS], logs: {} };
+      userDoc().set(state);
+    }
+    setSyncBadge('ok');
+    renderDay();
+  }, err => {
+    console.error(err);
+    setSyncBadge('error');
+  });
+}
+
+async function saveState(){
+  if(!uid) return;
+  setSyncBadge('syncing');
+  try {
+    await userDoc().set(state);
+    setSyncBadge('ok');
+  } catch(e){
+    setSyncBadge('error');
+  }
+}
+
+function setSyncBadge(s){
+  const el = document.getElementById('sync-badge');
+  el.className = 'sync-badge ' + (s==='syncing'?'syncing':s==='ok'?'ok':'');
+  el.textContent = s==='syncing' ? '⟳ sincronizando' : s==='ok' ? '✓ sincronizado' : '✗ erro';
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function dk(d){ return d.toISOString().slice(0,10); }
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function fmtDate(d){
+  const today = dk(new Date())===dk(d);
+  const str = DAYS[d.getDay()]+', '+d.getDate()+' '+MONTHS[d.getMonth()];
+  return today ? '<span>Hoje</span>, '+d.getDate()+' '+MONTHS[d.getMonth()] : str;
+}
+
+// ── Render day ────────────────────────────────────────────────
+function renderDay(){
+  document.getElementById('date-display').innerHTML = fmtDate(curDate);
+  const key = dk(curDate);
+  const log = state.logs[key] || {};
+  const list = document.getElementById('kpi-list');
+  list.innerHTML = '';
+
+  if(!state.kpis.length){
+    list.innerHTML = '<div class="empty">Nenhum KPI ainda.<br>Adicione o primeiro abaixo.</div>';
+  }
+  state.kpis.forEach((kpi,i) => {
+    const done = !!log[i];
+    const el = document.createElement('div');
+    el.className = 'kpi-item'+(done?' done':'');
+    el.style.animationDelay = (i*0.04)+'s';
+    el.innerHTML = `
+      <div class="check-circle">
+        <svg class="check-icon" width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <polyline points="2,6 5,9 10,3" stroke="#1a2800" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="kpi-name">${esc(kpi)}</span>
+      <button class="del-btn" onclick="delKPI(${i},event)">&#215;</button>`;
+    el.addEventListener('click', ()=>toggleKPI(i));
+    list.appendChild(el);
+  });
+
+  const done = Object.values(log).filter(Boolean).length;
+  const total = state.kpis.length;
+  const rate  = total ? Math.round(done/total*100) : 0;
+  document.getElementById('s-done').textContent = done;
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-rate').textContent  = rate+'%';
+  document.getElementById('progress-bar').style.width = rate+'%';
+}
+
+// ── KPI actions ───────────────────────────────────────────────
+function toggleKPI(i){
+  const key = dk(curDate);
+  if(!state.logs[key]) state.logs[key]={};
+  state.logs[key][i] = !state.logs[key][i];
+  renderDay();
+  saveState();
+}
+
+function delKPI(i,e){
+  e.stopPropagation();
+  if(!confirm('Remover "'+state.kpis[i]+'"?')) return;
+  state.kpis.splice(i,1);
+  Object.keys(state.logs).forEach(k=>{
+    const nl={};
+    Object.keys(state.logs[k]).forEach(j=>{
+      const n=parseInt(j);
+      if(n<i) nl[n]=state.logs[k][j];
+      else if(n>i) nl[n-1]=state.logs[k][j];
+    });
+    state.logs[k]=nl;
+  });
+  renderDay();
+  saveState();
+}
+
+function addKPI(){
+  const inp=document.getElementById('new-kpi');
+  const v=inp.value.trim();
+  if(!v) return;
+  state.kpis.push(v);
+  renderDay();
+  saveState();
+  inp.value=''; inp.focus();
+}
+
+document.getElementById('new-kpi').addEventListener('keydown',e=>{ if(e.key==='Enter') addKPI(); });
+document.getElementById('prev-day').onclick=()=>{ curDate=new Date(curDate-864e5); renderDay(); };
+document.getElementById('next-day').onclick=()=>{ curDate=new Date(curDate.getTime()+864e5); renderDay(); };
+
+// ── Tabs ──────────────────────────────────────────────────────
+function showTab(t){
+  document.getElementById('sec-hoje').style.display    = t==='hoje'?'':'none';
+  document.getElementById('sec-grafico').style.display = t==='grafico'?'':'none';
+  document.getElementById('tab-hoje').className    = 'tab-btn'+(t==='hoje'?' active':'');
+  document.getElementById('tab-grafico').className = 'tab-btn'+(t==='grafico'?' active':'');
+  if(t==='grafico') renderChart();
+}
+
+function setChartMode(m){
+  chartMode=m;
+  document.getElementById('cm-month').className='mode-btn'+(m==='month'?' active':'');
+  document.getElementById('cm-compare').className='mode-btn'+(m==='compare'?' active':'');
+  renderChart();
+}
+
+// ── Chart ─────────────────────────────────────────────────────
+function getMonthRates(yr,mo){
+  const days=new Date(yr,mo+1,0).getDate();
+  return Array.from({length:days},(_,i)=>{
+    const k=`${yr}-${String(mo+1).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`;
+    const log=state.logs[k]||{};
+    const done=Object.values(log).filter(Boolean).length;
+    return state.kpis.length ? Math.round(done/state.kpis.length*100) : 0;
+  });
+}
+
+function calcStreak(){
+  let streak=0, d=new Date();
+  while(streak<365){
+    const log=state.logs[dk(d)]||{};
+    if(Object.values(log).filter(Boolean).length>0) streak++;
+    else break;
+    d=new Date(d.getTime()-864e5);
+  }
+  return streak;
+}
+
+const PALETTE=['#c8f060','#60c8f0','#f060a8'];
+
+function renderChart(){
+  if(kpiChart){ kpiChart.destroy(); kpiChart=null; }
+  const ctx=document.getElementById('kpiChart').getContext('2d');
+  const now=new Date(), yr=now.getFullYear(), mo=now.getMonth();
+
+  if(chartMode==='month'){
+    const rates=getMonthRates(yr,mo);
+    document.getElementById('chart-legend').innerHTML=`<div class="legend-item"><span class="legend-dot" style="background:#c8f060"></span>${MONTHS[mo]} ${yr}</div>`;
+    kpiChart=new Chart(ctx,{
+      type:'bar',
+      data:{labels:rates.map((_,i)=>String(i+1)),datasets:[{data:rates,backgroundColor:rates.map(v=>v===100?'#c8f060':v>0?'rgba(200,240,96,0.5)':'rgba(200,240,96,0.1)'),borderRadius:3,borderSkipped:false}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+'%'}}},scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%',color:'#6b6860',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}},x:{ticks:{color:'#6b6860',font:{size:10},autoSkip:true,maxTicksLimit:15},grid:{display:false}}}}
+    });
+    const avg=Math.round(rates.reduce((a,b)=>a+b,0)/rates.length);
+    const best=Math.max(...rates,0);
+    document.getElementById('stat-grid').innerHTML=`
+      <div class="scard"><div class="lbl">Média do mês</div><div class="val">${avg}%</div></div>
+      <div class="scard"><div class="lbl">Melhor dia</div><div class="val">${best}%</div></div>
+      <div class="scard accent"><div class="lbl">Sequência</div><div class="val">${calcStreak()} dias</div></div>`;
+  } else {
+    const datasets=[], legendHtml=[];
+    for(let i=2;i>=0;i--){
+      let m=mo-i, y=yr; if(m<0){m+=12;y--;}
+      const rates=getMonthRates(y,m);
+      const color=PALETTE[2-i];
+      datasets.push({label:MONTHS[m]+' '+y,data:rates,borderColor:color,backgroundColor:'transparent',tension:0.35,pointRadius:1.5,fill:false});
+      legendHtml.push(`<div class="legend-item"><span class="legend-dot" style="background:${color}"></span>${MONTHS[m]} ${y}</div>`);
+    }
+    document.getElementById('chart-legend').innerHTML=legendHtml.join('');
+    const maxDays=Math.max(...datasets.map(d=>d.data.length));
+    kpiChart=new Chart(ctx,{
+      type:'line',
+      data:{labels:Array.from({length:maxDays},(_,i)=>String(i+1)),datasets},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%',color:'#6b6860',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}},x:{ticks:{color:'#6b6860',font:{size:10},autoSkip:true,maxTicksLimit:15},grid:{display:false}}}}
+    });
+    document.getElementById('stat-grid').innerHTML=datasets.map(ds=>{
+      const avg=Math.round(ds.data.reduce((a,b)=>a+b,0)/ds.data.length);
+      return `<div class="scard"><div class="lbl" style="color:${ds.borderColor}">${ds.label}</div><div class="val">${avg}% médio</div></div>`;
+    }).join('');
+  }
+}
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
